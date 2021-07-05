@@ -1,3 +1,3 @@
-# ishell
+# ish
 
-ishell is a toy shell made by speed1313.
+ish is a toy shell made by speed1313.
