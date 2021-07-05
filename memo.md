@@ -16,7 +16,7 @@
 pipelineで必要
 - select
 - mmap
-- dup
+- dupa
 - chdir
 - execvp
 
