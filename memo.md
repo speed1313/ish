@@ -2,11 +2,14 @@
 
 ## Useful C standard function
 - strtok\
-コマンド引数を分割するとき.
+コマンド引数を分割するとき.(strtokだと ls|grep .txt などができない気がする)
 - chdir\
 カレントディレクトリを変える時
 - getenv\
 環境変数を得るとき($HOMEなど)
+- getopt\
+コマンドラインのオプション解析
+- strrchr
 ## system call
 - fork
 - exec
@@ -25,7 +28,10 @@ pipelineで必要
 - wc
 - echo
 - diff
+- cp
 - pipeline
-- redirect
+- redirectaion
 - tab補完
 - implement option
+- daemon (logd)
+    - httpd
