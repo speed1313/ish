@@ -6,12 +6,6 @@
  *  インクルードファイル
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <string.h>
 #include "main.h"
 /*
  *  定数の定義
@@ -19,7 +13,23 @@
 
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
-
+char *ExternalCommand[]={
+    "ls",
+    "firefox",
+    "ps"
+};
+char *BuiltinCommand[]={
+    "cd",
+    "history",
+    "pushd",
+    "dirs",
+    "popd",
+    "prompt",
+    "alias",
+    "unalias",
+    "!!",
+    "!string"
+};
 /*
  *  ローカルプロトタイプ宣言
  */
@@ -60,7 +70,10 @@ int main(int argc, char *argv[])
         /*
          *  プロンプトを表示する
          */
-
+        char CurrentPath[512];
+        CurrentPath[0]='\0';
+        int pathlen=0;
+        getcwd(CurrentPath, pathlen);
         printf("Command : ");
 
         /*
@@ -260,84 +273,69 @@ void execute_command(char *args[],    /* 引数の配列 */
                      int command_status)     /* コマンドの状態 */
 {
     int pid;      /* プロセスＩＤ */
-    int status;   /* 子プロセスの終了ステータス */
-    int NumBuiltIn=sizeof(BuiltInCommand)/sizeof(char *);
+    int status=0;   /* 子プロセスの終了ステータス */
+    int NumBuiltin=sizeof(BuiltinCommand)/sizeof(char *);
     int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
+    int isBuiltin=0;
 
+
+    for(int i=0;i<NumBuiltin;i++){
+        if(strcmp(args[0],BuiltinCommand[i])==0){
+            isBuiltin=1;
+            //printf("%s will execute\n",BuiltinCommand[i]);
+            (*ish_builtin_func[i])(args);
+            return;
+        }
+    }
     /*
      *  子プロセスを生成する
      *
      *  生成できたかを確認し、失敗ならばプログラムを終了する
      */
-    pid=fork();
-
-    /******** Your Program ********/
-
-    /*
-     *  子プロセスの場合には引数として与えられたものを実行する
-     *
-     *  引数の配列は以下を仮定している
-     *  ・第１引数には実行されるプログラムを示す文字列が格納されている
-     *  ・引数の配列はヌルポインタで終了している
-     */
-
-    /******** Your Program ********/
-    switch(pid){
-        case -1:
-            printf("error :fork failed at main.c\n");
-            break;
-        case 0:
-            printf("pid = %d\n",getpid());
-            printf("ppid= %d\n",getppid());
-            for(int i=0;i<NumBuiltIn;i++){
-                if(strcmp(args[0],BuiltInCommand[i])==0){
-                    printf("%s will execute\n",BuiltInCommand[i]);
-                    execvp(args[0],args);
-                    printf("error :execve failed at main.c\n");
-                    return;
-                }
-            }
-            for(int i=0;i<NumExternalCommand;i++){
-                if(strcmp(args[0],ExternalCommand[i])==0){
-                    printf("%s will execute\n",ExternalCommand[i]);
-                    execvp(args[0],args);
-                    printf("error :execve failed at main.c\n");
-                    return;
-                }
-            }
-            printf("ish: command not found: %s\n",args[0]);
-            break;
-        default:
-            if(command_status==0){//foreground
-                for(;;){
-                    if((waitpid(0,&status,WUNTRACED))==-1){
-                        printf("error :waitpid failed at main.c\n");
-                        break;
-                    }
-                    if(WIFEXITED(status)||WIFSIGNALED(status)){
-                        break;
-                    }
-                }
+    if(isBuiltin==0){
+        pid=fork();
+        /*
+        *  子プロセスの場合には引数として与えられたものを実行する
+        *
+        *  引数の配列は以下を仮定している
+        *  ・第１引数には実行されるプログラムを示す文字列が格納されている
+        *  ・引数の配列はヌルポインタで終了している
+        */
+        switch(pid){
+            case -1:
+                fprintf(stderr,"error :fork failed at main.c\n");
                 break;
-            }else{//backgrond
-
-                return;
-            }
+            case 0://child
+                for(int i=0;i<NumExternalCommand;i++){
+                    if(strcmp(args[0],ExternalCommand[i])==0){
+                        fprintf(stderr,"%s will execute\n",ExternalCommand[i]);
+                        execvp(args[0],args);
+                        fprintf(stderr, "error :execve failed at main.c\n");
+                        exit(1);
+                    }
+                }
+                fprintf(stderr,"ish: command not found: %s\n",args[0]);
+                exit(0);
+            default://parent
+                //printf("command_status=%d\n",command_status);
+                if(command_status==0){//foreground
+                    for(;;){
+                        if((waitpid(pid,&status,WUNTRACED))==-1){
+                            fprintf(stderr,"error :waitpid failed at main.c\n");
+                            break;
+                        }
+                        if(WIFEXITED(status)||WIFSIGNALED(status)){
+                            break;
+                        }
+                    }
+                    break;
+                }else{//background
+                    fprintf(stderr,"background\n");
+                    return;
+                }
+        }
     }
 
-    /*
-     *  コマンドの状態がバックグラウンドなら関数を抜ける
-     */
-
-    /******** Your Program ********/
-
-    /*
-     *  ここにくるのはコマンドの状態がフォアグラウンドの場合
-     *
-     *  親プロセスの場合に子プロセスの終了を待つ
-     */
-
-    /******** Your Program ********/
 
     return;
 }
