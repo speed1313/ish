@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
-
+#include "main.h"
 /*
  *  定数の定義
  */
@@ -261,13 +261,15 @@ void execute_command(char *args[],    /* 引数の配列 */
 {
     int pid;      /* プロセスＩＤ */
     int status;   /* 子プロセスの終了ステータス */
+    int NumBuiltIn=sizeof(BuiltInCommand)/sizeof(char *);
+    int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
 
     /*
      *  子プロセスを生成する
      *
      *  生成できたかを確認し、失敗ならばプログラムを終了する
      */
-    
+    pid=fork();
 
     /******** Your Program ********/
 
@@ -280,6 +282,48 @@ void execute_command(char *args[],    /* 引数の配列 */
      */
 
     /******** Your Program ********/
+    switch(pid){
+        case -1:
+            printf("error :fork failed at main.c\n");
+            break;
+        case 0:
+            printf("pid = %d\n",getpid());
+            printf("ppid= %d\n",getppid());
+            for(int i=0;i<NumBuiltIn;i++){
+                if(strcmp(args[0],BuiltInCommand[i])==0){
+                    printf("%s will execute\n",BuiltInCommand[i]);
+                    execvp(args[0],args);
+                    printf("error :execve failed at main.c\n");
+                    return;
+                }
+            }
+            for(int i=0;i<NumExternalCommand;i++){
+                if(strcmp(args[0],ExternalCommand[i])==0){
+                    printf("%s will execute\n",ExternalCommand[i]);
+                    execvp(args[0],args);
+                    printf("error :execve failed at main.c\n");
+                    return;
+                }
+            }
+            printf("ish: command not found: %s\n",args[0]);
+            break;
+        default:
+            if(command_status==0){//foreground
+                for(;;){
+                    if((waitpid(0,&status,WUNTRACED))==-1){
+                        printf("error :waitpid failed at main.c\n");
+                        break;
+                    }
+                    if(WIFEXITED(status)||WIFSIGNALED(status)){
+                        break;
+                    }
+                }
+                break;
+            }else{//backgrond
+
+                return;
+            }
+    }
 
     /*
      *  コマンドの状態がバックグラウンドなら関数を抜ける

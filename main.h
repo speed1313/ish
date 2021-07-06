@@ -1,14 +1,16 @@
-typyedef enum{
-    cd=0,
-    history,
-    ls,
-    fireflx,
-    pushd,
-    dirs,
-    popd,
-    !!,
-    !string,
-    prompt,
-    alias,
-    unalias
-}command;
+char *BuiltInCommand[]={
+    "cd",
+    "history",
+    "pushd",
+    "dirs",
+    "popd",
+    "prompt",
+    "alias",
+    "unalias",
+    "!!",
+    "!string"
+};
+char *ExternalCommand[]={
+    "ls",
+    "firefox"
+};
