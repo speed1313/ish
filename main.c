@@ -2,12 +2,12 @@
 
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
-char *ExternalCommand[]={
+char *BuiltinCommand[]={
     "cd"
 };
-char *BuiltinCommand[]={
+char *ExternalCommand[]={
     "pushd",
-    "dir",
+    "dirs",
     "popd",
     "history"
 };
@@ -260,16 +260,11 @@ void execute_command(char *args[],    /* 引数の配列 */
     for(int i=0;i<NumBuiltin;i++){
         if(strcmp(args[0],BuiltinCommand[i])==0){
             isBuiltin=1;
-            //printf("%s will execute\n",BuiltinCommand[i]);
+            printf("builtin %s will execute\n",BuiltinCommand[i]);
             (*builtin_func[i])(args);
             return;
         }
     }
-    /*
-     *  子プロセスを生成する
-     *
-     *  生成できたかを確認し、失敗ならばプログラムを終了する
-     */
     if(isBuiltin==0){
         pid=fork();
         /*
@@ -286,12 +281,12 @@ void execute_command(char *args[],    /* 引数の配列 */
             case 0://child
                 for(int i=0;i<NumExternalCommand;i++){
                     if(strcmp(args[0],ExternalCommand[i])==0){
-                        fprintf(stderr,"%s will execute\n",ExternalCommand[i]);
+                        fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
                         (*external_func[i])(args);
                         return;
                     }
                 }
-                fprintf(stderr,"%s will execute\n",ExternalCommand[i]);
+                fprintf(stderr,"%s will execute\n",args[0]);
                 execvp(args[0],args);
                 fprintf(stderr, "error :execve failed at main.c\n");
                 exit(1);

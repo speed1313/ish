@@ -8,10 +8,12 @@ void pushd(char *args[]){
      }else{
          dirStackTop=pushNode(cwd,dirStackTop);
      }
+     printf("pushd was executed\n");
      return;
 }
 void dirs(char *args[]){
     print_list(dirStackTop);
+    printf("dirs was executed\n");
     return;
 }
 void popd(char *args[]){
@@ -20,11 +22,11 @@ void popd(char *args[]){
     return;
 }
 
+/*
 int main(){
     char* a="pushd";
     char* b="dirs";
     char* c="popd";
-    /* リストに追加 */
         for(;;){
         char **args;
         char func[20];
@@ -40,9 +42,6 @@ int main(){
             popd(args);
         }
     }
-  /* ファイルリストの表示 */
-
-
-  /* ファイルリストの削除 */
   clear_list(dirStackTop);
 }
+*/
