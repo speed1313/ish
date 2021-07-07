@@ -271,6 +271,10 @@ void execute_command(char *args[],    /* 引数の配列 */
     int NumBuiltin=sizeof(BuiltinCommand)/sizeof(char *);
     int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
     int isBuiltin=0;
+    char histstr[]="history";
+    if(strcmp(args[0],histstr)!=0){
+        pushHistory(args);
+    }
 
     for(int i=0;i<NumBuiltin;i++){
         if(strcmp(args[0],BuiltinCommand[i])==0){
@@ -298,7 +302,10 @@ void execute_command(char *args[],    /* 引数の配列 */
                     if(strcmp(args[0],ExternalCommand[i])==0){
                         fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
                         (*external_func[i])(args);
-                        return;
+                        if(strcmp(args[0],histstr)==0){
+                            pushHistory(args);
+                        }
+                        exit(0);
                     }
                 }
                 fprintf(stderr,"%s will execute\n",args[0]);

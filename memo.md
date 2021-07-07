@@ -35,3 +35,8 @@ pipelineで必要
 - implement option
 - daemon (logd)
     - httpd
+
+# 注意
+- cdするとプロセスが増えてhistoryも受け継がれない？？historyにbuiltinコマンドが追加されない
+子プロセスでしっかりexitしたら治った
+- printfデバッグなどして差し込むときにif()hoge; のところに差し込むとおかしくなるから注意

@@ -5,11 +5,12 @@
 #include <sys/wait.h>
 #include <string.h>
 //ish functions
-void ish_cd(char *args[]);
 void pushd(char *args[]);
 void dirs(char *args[]);
 void popd(char *args[]);
 void history(char *args[]);
+void pushHistory(char *args[]);
 //ish builtin funcitons
+void ish_cd(char *args[]);
 
 
