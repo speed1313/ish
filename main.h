@@ -11,8 +11,5 @@ void dirs(char *args[]);
 void popd(char *args[]);
 void history(char *args[]);
 //ish builtin funcitons
-char *BuiltinCommand[];
-void (*builtin_func[]) (char *args[]);
-void (*external_func[]) (char *args[]);
-char *ExternalCommand[];
+
 

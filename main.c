@@ -11,6 +11,21 @@ char *ExternalCommand[]={
     "popd",
     "history"
 };
+void (*builtin_func[]) (char *args[]) = {
+    &ish_cd
+};
+void (*external_func[]) (char *args[]) = {
+    &pushd,
+    &dirs,
+    &popd,
+    &history/*
+    &prompt,
+    &alias,
+    &unalias,
+    &!!,
+    &!string
+    */
+};
 /*
  *  ローカルプロトタイプ宣言
  */

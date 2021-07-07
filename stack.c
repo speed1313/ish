@@ -38,6 +38,14 @@ linkedList *popNode(char *popedNodeName,linkedList *stackTop){
 void print_list(linkedList *node){
   if(node==NULL)
     return;
+  printf("%s\n",node->name);
+  print_list(node->next);
+  return;
+
+}
+void r_print_list(linkedList *node){
+  if(node==NULL)
+    return;
   print_list(node->next);
   printf("%s\n",node->name);
   return;
