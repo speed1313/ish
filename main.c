@@ -1,34 +1,15 @@
-/*----------------------------------------------------------------------------
- *  簡易版シェル
- *--------------------------------------------------------------------------*/
-
-/*
- *  インクルードファイル
- */
-
 #include "main.h"
-/*
- *  定数の定義
- */
 
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
 char *ExternalCommand[]={
-    "ls",
-    "firefox",
-    "ps"
+    "cd"
 };
 char *BuiltinCommand[]={
-    "cd",
-    "history",
     "pushd",
-    "dirs",
+    "dir",
     "popd",
-    "prompt",
-    "alias",
-    "unalias",
-    "!!",
-    "!string"
+    "history"
 };
 /*
  *  ローカルプロトタイプ宣言
@@ -243,11 +224,9 @@ int parse(char buffer[],        /* バッファ */
     if(arg_index == 0) {
         status = 3;
     }
-
     /*
      *  コマンドの状態を返す
      */
-
     return status;
 }
 
@@ -278,12 +257,11 @@ void execute_command(char *args[],    /* 引数の配列 */
     int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
     int isBuiltin=0;
 
-
     for(int i=0;i<NumBuiltin;i++){
         if(strcmp(args[0],BuiltinCommand[i])==0){
             isBuiltin=1;
             //printf("%s will execute\n",BuiltinCommand[i]);
-            (*ish_builtin_func[i])(args);
+            (*builtin_func[i])(args);
             return;
         }
     }
@@ -309,13 +287,14 @@ void execute_command(char *args[],    /* 引数の配列 */
                 for(int i=0;i<NumExternalCommand;i++){
                     if(strcmp(args[0],ExternalCommand[i])==0){
                         fprintf(stderr,"%s will execute\n",ExternalCommand[i]);
-                        execvp(args[0],args);
-                        fprintf(stderr, "error :execve failed at main.c\n");
-                        exit(1);
+                        (*external_func[i])(args);
+                        return;
                     }
                 }
-                fprintf(stderr,"ish: command not found: %s\n",args[0]);
-                exit(0);
+                fprintf(stderr,"%s will execute\n",ExternalCommand[i]);
+                execvp(args[0],args);
+                fprintf(stderr, "error :execve failed at main.c\n");
+                exit(1);
             default://parent
                 //printf("command_status=%d\n",command_status);
                 if(command_status==0){//foreground

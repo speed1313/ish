@@ -1,9 +1,5 @@
 #include "main.h"
-typedef struct dir_stack{
-  char            *name;
-  struct dir_stack *next;
-} linkedList;
-linkedList *historyList=NULL;
+#include "stack.h"
 linkedList *pushNode(char *name,linkedList *stackTop)
 {
     linkedList *new;

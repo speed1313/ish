@@ -4,11 +4,15 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
-
-//builtin functions
+//ish functions
 void ish_cd(char *args[]);
+void pushd(char *args[]);
+void dirs(char *args[]);
+void popd(char *args[]);
 
+//ish builtin funcitons
 char *BuiltinCommand[];
-void (*ish_builtin_func[]) (char *args[]);
+void (*builtin_func[]) (char *args[]);
+void (*external_func[]) (char *args[]);
 char *ExternalCommand[];
 
