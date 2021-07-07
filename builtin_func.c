@@ -1,10 +1,23 @@
 #include "main.h"
 void (*ish_builtin_func[]) (char *args[]) = {
     &ish_cd
-    /*&history,
-    &pushd,
+    /*
+    ,&pushd,
     &dirs,
     &popd,
+    &history,
+    &prompt,
+    &alias,
+    &unalias,
+    &!!,
+    &!string
+    */
+};
+void (*external_func[]) (char *args[]) = {
+    &pushd
+    ,&dirs,
+    &popd/*
+    &history,
     &prompt,
     &alias,
     &unalias,
