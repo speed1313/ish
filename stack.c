@@ -36,8 +36,9 @@ linkedList *popNode(char *popedNodeName,linkedList *stackTop){
     return stackTop;
 }
 void print_list(linkedList *node){
-  if(node==NULL)
+  if(node==NULL){
     return;
+  }
   printf("%s\n",node->name);
   print_list(node->next);
   return;

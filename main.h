@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
+#include "stack.h"
 //ish functions
 void pushd(char *args[]);
 void dirs(char *args[]);

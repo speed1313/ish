@@ -1,24 +1,26 @@
 #include "main.h"
-
+//Macro definition
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
 char *BuiltinCommand[]={
-    "cd"
-};
-char *ExternalCommand[]={
+    "cd",
     "pushd",
     "dirs",
     "popd",
     "history"
 };
-void (*builtin_func[]) (char *args[]) = {
-    &ish_cd
+char *ExternalCommand[]={
+
 };
-void (*external_func[]) (char *args[]) = {
+void (*builtin_func[]) (char *args[]) = {
+    &ish_cd,
     &pushd,
     &dirs,
     &popd,
-    &history/*
+    &history
+};
+void (*external_func[]) (char *args[]) = {
+    /*
     &prompt,
     &alias,
     &unalias,
@@ -97,6 +99,8 @@ int main(int argc, char *argv[])
 
         if(command_status == 2) {
             printf("done.\n");
+            clear_list(histStackTop);
+            clear_list(dirStackTop);
             exit(EXIT_SUCCESS);
         } else if(command_status == 3) {
             continue;
@@ -298,19 +302,29 @@ void execute_command(char *args[],    /* 引数の配列 */
                 fprintf(stderr,"error :fork failed at main.c\n");
                 break;
             case 0://child
-                for(int i=0;i<NumExternalCommand;i++){
-                    if(strcmp(args[0],ExternalCommand[i])==0){
-                        fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
-                        (*external_func[i])(args);
+                /*built in (pipe用)*/
+                for(int i=0;i<NumBuiltin;i++){
+                    if(strcmp(args[0],BuiltinCommand[i])==0){
+                        fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
+                        (*builtin_func[i])(args);
                         if(strcmp(args[0],histstr)==0){
                             pushHistory(args);
                         }
                         exit(0);
                     }
                 }
+                /*ish_func*/
+                for(int i=0;i<NumExternalCommand;i++){
+                    if(strcmp(args[0],ExternalCommand[i])==0){
+                        fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
+                        (*external_func[i])(args);
+                        exit(0);
+                    }
+                }
                 fprintf(stderr,"%s will execute\n",args[0]);
                 execvp(args[0],args);
                 fprintf(stderr, "error :execve failed at main.c\n");
+                fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
                 exit(1);
             default://parent
                 //printf("command_status=%d\n",command_status);
@@ -324,9 +338,16 @@ void execute_command(char *args[],    /* 引数の配列 */
                             break;
                         }
                     }
-                    break;
+                    if(strcmp(args[0],histstr)==0){
+                        pushHistory(args);
+                    }
+
+                    return;
                 }else{//background
                     fprintf(stderr,"background\n");
+                    if(strcmp(args[0],histstr)==0){
+                        pushHistory(args);
+                    }
                     return;
                 }
         }

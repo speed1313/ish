@@ -8,12 +8,10 @@ void pushd(char *args[]){
      }else{
          dirStackTop=pushNode(cwd,dirStackTop);
      }
-     printf("pushd was executed\n");
      return;
 }
 void dirs(char *args[]){
     print_list(dirStackTop);
-    printf("dirs was executed\n");
     return;
 }
 void popd(char *args[]){
