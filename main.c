@@ -20,6 +20,7 @@ void (*builtin_func[]) (char *args[]) = {
     &history
 };
 void (*external_func[]) (char *args[]) = {
+
     /*
     &prompt,
     &alias,

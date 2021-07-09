@@ -12,6 +12,7 @@ void pushHistory(char *args[]){
     saveCommandName[0]='\0';
     for(int i=0;args[i]!=NULL;i++){
         strcat(saveCommandName,args[i]);
+        strcat(saveCommandName," ");
     }
     if(historyLen==HISTORYLEN){
             histStackArrange(histStackTop);
