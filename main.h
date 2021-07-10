@@ -5,6 +5,8 @@
 #include <sys/wait.h>
 #include <string.h>
 #include "stack.h"
+#include <ctype.h>
+#include <dirent.h>
 //ish functions
 
 
@@ -15,5 +17,6 @@ void dirs(char *args[]);
 void popd(char *args[]);
 void history(char *args[]);
 void pushHistory(char *args[]);
+
 
 

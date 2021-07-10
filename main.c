@@ -2,6 +2,7 @@
 //Macro definition
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
+char precommand[]="!!";
 char *BuiltinCommand[]={
     "cd",
     "pushd",
@@ -32,10 +33,12 @@ void (*external_func[]) (char *args[]) = {
 /*
  *  ローカルプロトタイプ宣言
  */
-
 int parse(char [], char *[]);
 void execute_command(char *[], int);
-
+void str_replace(char *buf,char *str1,char *str2);
+void complemental_replace(char *buf,linkedList *ptr);
+void get_cwd_files(char *buf);
+char **wildcard(char *argv[]);
 /*----------------------------------------------------------------------------
  *
  *  関数名   : main
@@ -141,20 +144,15 @@ int parse(char buffer[],        /* バッファ */
 {
     int arg_index;   /* 引数用のインデックス */
     int status;   /* コマンドの状態を表す */
-
-    /*
-     *  変数の初期化
-     */
-
     arg_index = 0;
     status = 0;
-
-    /*
-     *  バッファ内の最後にある改行をヌル文字へ変更
-     */
-
-    *(buffer + (strlen(buffer) - 1)) = '\0';
-
+    if(*(buffer + (strlen(buffer) - 1))=='\n'){
+        *(buffer + (strlen(buffer) - 1)) = '\0';
+    }
+    if(histStackTop!=NULL){
+        str_replace(buffer,precommand,histStackTop->name);
+        complemental_replace(buffer,histStackTop);
+    }
     /*
      *  バッファが終了を表すコマンド（"exit"）ならば
      *  コマンドの状態を表す返り値を 2 に設定してリターンする
@@ -209,22 +207,16 @@ int parse(char buffer[],        /* バッファ */
             ++buffer;
         }
     }
-
     /*
      *  最後の引数の次にはヌルへのポインタを格納する
      */
-
     args[arg_index] = NULL;
-
     /*
      *  最後の引数をチェックして "&" ならば
-     *
      *  "&" を引数から削る
      *  コマンドの状態を表す status に 1 を設定する
-     *
      *  そうでなければ status に 0 を設定する
      */
-
     if(arg_index > 0 && strcmp(args[arg_index - 1], "&") == 0) {
 
         --arg_index;
@@ -280,12 +272,16 @@ void execute_command(char *args[],    /* 引数の配列 */
     if(strcmp(args[0],histstr)!=0){
         pushHistory(args);
     }
+    args=wildcard(args);
 
     for(int i=0;i<NumBuiltin;i++){
         if(strcmp(args[0],BuiltinCommand[i])==0){
             isBuiltin=1;
             printf("builtin %s will execute\n",BuiltinCommand[i]);
             (*builtin_func[i])(args);
+            if(strcmp(args[0],histstr)==0){
+                pushHistory(args);
+            }
             return;
         }
     }
@@ -356,6 +352,109 @@ void execute_command(char *args[],    /* 引数の配列 */
 
 
     return;
+}
+
+
+//general functions
+void str_replace(char *buf,char *str1,char *str2){
+  char tmp[1024];
+  char *p;
+  while ((p = strstr(buf, str1)) != NULL) {
+    *p = '\0';
+    p += strlen(str1);
+    strcpy(tmp, p);
+    strcat(buf, str2);
+    strcat(buf, tmp);
+  }
+}
+
+
+void complemental_replace(char *buf,linkedList *ptr){
+  char tmp[1024];
+  char *p;
+  char *p2;
+  int  match=0;
+  while ((p = strstr(buf,"!")) != NULL) {
+    p2=p;
+    int i=0;
+    char strbuf[1024];
+    char *str2;
+    p++;
+    while(isspace(*p)==0&&(p!=NULL)){
+        strbuf[i++]=*p;
+        p++;
+    }
+    strbuf[i]='\0';//strbufに!strのstrがはいる
+    i=0;
+    *p2='\0';
+    p2 += (strlen(strbuf)+1);//"!str” 分進める
+    strcpy(tmp, p2);//tmpに!strの後ろ部分を格納
+    while(ptr!=NULL){
+        int matchNum=0;
+        for(int i=0;i<strlen(strbuf);i++){
+            if(strbuf[i]==ptr->name[i]){
+                matchNum++;
+            }
+        }
+        if(matchNum==strlen(strbuf)){
+            match=1;
+            break;
+        }
+        ptr=ptr->next;
+    }
+    if(match==1){
+        strcat(buf,ptr->name);
+    }else{
+        strcat(buf," ");
+    }
+    strcat(buf, tmp);
+  }
+}
+
+void  get_cwd_files(char *buf){
+    DIR *dp;
+    struct dirent *dir;
+    char *path = ".";
+    if((dp = opendir(path))==NULL){
+        perror("Can't open direcotry");
+        exit(1);
+    }
+    while((dir = readdir(dp)) != NULL){
+        if((dir->d_type==DT_REG)&&(dir->d_name[0]!='.')){
+            strcat(buf,dir->d_name);
+            strcat(buf," ");
+        }
+    }
+    closedir(dp);
+    return;
+}
+char **wildcard(char *args[]){
+    char *newargs[MAXARGNUM];
+    char newcommand_buffer[BUFLEN];
+    newcommand_buffer[0]='\0';
+    int argc=0;
+    int isWild=0;
+    for(int i=0;args[i]!=NULL;i++){
+        argc++;
+    }
+    for(int i=0;i<argc;i++){
+        if(strcmp(args[i],"*")==0){
+            isWild=0;
+            char fileList[1024];
+            fileList[0]='\0';
+            get_cwd_files(fileList);
+            args[i]=fileList;
+        }
+        strcat(newcommand_buffer,args[i]);
+        strcat(newcommand_buffer," ");
+
+    }
+    if(isWild){
+        parse(newcommand_buffer,newargs);
+        return newargs;
+    }else{
+        return args;
+    }
 }
 
 /*-- END OF FILE -----------------------------------------------------------*/
