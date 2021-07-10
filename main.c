@@ -3,12 +3,16 @@
 #define BUFLEN    1024     /* コマンド用のバッファの大きさ */
 #define MAXARGNUM  256     /* 最大の引数の数 */
 char precommand[]="!!";
+char default_prompt[]="Command : ";
+char *prompt_str;
+
 char *BuiltinCommand[]={
     "cd",
     "pushd",
     "dirs",
     "popd",
-    "history"
+    "history",
+        "prompt"
 };
 char *ExternalCommand[]={
 
@@ -18,7 +22,8 @@ void (*builtin_func[]) (char *args[]) = {
     &pushd,
     &dirs,
     &popd,
-    &history
+    &history,
+        &prompt
 };
 void (*external_func[]) (char *args[]) = {
 
@@ -62,7 +67,7 @@ int main(int argc, char *argv[])
                                     command_status = 1 : バックグラウンドで実行
                                     command_status = 2 : シェルの終了
                                     command_status = 3 : 何もしない */
-
+    prompt_str=default_prompt;
     /*
      *  無限にループする
      */
@@ -76,7 +81,7 @@ int main(int argc, char *argv[])
         CurrentPath[0]='\0';
         int pathlen=0;
         getcwd(CurrentPath, pathlen);
-        printf("Command : ");
+        printf("%s",prompt_str);
 
         /*
          *  標準入力から１行を command_buffer へ読み込む
