@@ -70,17 +70,13 @@ int main(int argc, char *argv[])
                                     command_status = 3 : 何もしない */
     prompt_str=default_prompt;
     //script機能
-    if(stdin==0){
-        printf("it is terminal\n");
-    }
-
-    /*if(1){
+    if(!isatty(0)){
         while (gets(command_buffer)!=NULL) {
             char CurrentPath[512];
             CurrentPath[0]='\0';
             int pathlen=0;
             getcwd(CurrentPath, pathlen);
-            fprintf(stderr,"%s %s\n",prompt_str,command_buffer);
+            fprintf(stdout,"%s %s\n",prompt_str,command_buffer);
             if(command_buffer==NULL) {
                 printf("\n");
                 continue;
@@ -98,10 +94,7 @@ int main(int argc, char *argv[])
 
         }
         return 0;
-    }*/
-
-
-
+    }
 
     /*
      *  無限にループする
