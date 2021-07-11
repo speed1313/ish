@@ -45,6 +45,6 @@ void histStackArrange(linkedList *node){
     free(temp);
 }
 void history(char *args[]){
-    hist_list_print(histStackTop,historyLen);
+    hist_list_print(histStackTop->next,historyLen-1);
     return;
 }
