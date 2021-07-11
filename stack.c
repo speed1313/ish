@@ -30,8 +30,8 @@ linkedList *popNode(char *popedNodeName,linkedList *stackTop){
         perror("popNode error");
         exit(1);
     }
-
     stackTop=stackTop->next;
+    free(p->name);
     free(p);
     return stackTop;
 }

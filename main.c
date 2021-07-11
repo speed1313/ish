@@ -6,13 +6,16 @@ char precommand[]="!!";
 char default_prompt[]="Command : ";
 char *prompt_str;
 
+
 char *BuiltinCommand[]={
     "cd",
     "pushd",
     "dirs",
     "popd",
     "history",
-        "prompt"
+    "prompt",
+    "alias",
+    "unalias"
 };
 char *ExternalCommand[]={
 
@@ -23,17 +26,15 @@ void (*builtin_func[]) (char *args[]) = {
     &dirs,
     &popd,
     &history,
-        &prompt
-};
-void (*external_func[]) (char *args[]) = {
-
-    /*
     &prompt,
     &alias,
     &unalias,
-    &!!,
-    &!string
-    */
+};
+void (*external_func[]) (char *args[]) = {
+
+
+
+
 };
 /*
  *  ローカルプロトタイプ宣言
@@ -68,21 +69,52 @@ int main(int argc, char *argv[])
                                     command_status = 2 : シェルの終了
                                     command_status = 3 : 何もしない */
     prompt_str=default_prompt;
+    //script機能
+    if(stdin==0){
+        printf("it is terminal\n");
+    }
+
+    /*if(1){
+        while (gets(command_buffer)!=NULL) {
+            char CurrentPath[512];
+            CurrentPath[0]='\0';
+            int pathlen=0;
+            getcwd(CurrentPath, pathlen);
+            fprintf(stderr,"%s %s\n",prompt_str,command_buffer);
+            if(command_buffer==NULL) {
+                printf("\n");
+                continue;
+            }
+            command_status = parse(command_buffer, args);
+            if(command_status == 2) {
+                printf("done.\n");
+                clear_list(histStackTop);
+                clear_list(dirStackTop);
+                exit(EXIT_SUCCESS);
+            } else if(command_status == 3) {
+                continue;
+            }
+            execute_command(args, command_status);
+
+        }
+        return 0;
+    }*/
+
+
+
+
     /*
      *  無限にループする
      */
 
-    for(;;) {
 
-        /*
-         *  プロンプトを表示する
-         */
+    for(;;) {
+        // プロンプトを表示
         char CurrentPath[512];
         CurrentPath[0]='\0';
         int pathlen=0;
         getcwd(CurrentPath, pathlen);
         printf("%s",prompt_str);
-
         /*
          *  標準入力から１行を command_buffer へ読み込む
          *  入力が何もなければ改行を出力してプロンプト表示へ戻る
@@ -92,20 +124,16 @@ int main(int argc, char *argv[])
             printf("\n");
             continue;
         }
-
         /*
          *  入力されたバッファ内のコマンドを解析する
          *
          *  返り値はコマンドの状態
          */
-
         command_status = parse(command_buffer, args);
-
         /*
          *  終了コマンドならばプログラムを終了
          *  引数が何もなければプロンプト表示へ戻る
          */
-
         if(command_status == 2) {
             printf("done.\n");
             clear_list(histStackTop);
@@ -114,11 +142,7 @@ int main(int argc, char *argv[])
         } else if(command_status == 3) {
             continue;
         }
-
-        /*
-         *  コマンドを実行する
-         */
-
+        //コマンドを実行する
         execute_command(args, command_status);
     }
 
@@ -274,9 +298,12 @@ void execute_command(char *args[],    /* 引数の配列 */
     int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
     int isBuiltin=0;
     char histstr[]="history";
-    if(strcmp(args[0],histstr)!=0){
-        pushHistory(args);
+    pushHistory(args);
+    for(int i=0;args[i]!=NULL;i++){
+        strcpy(alias_tmp,args[i]);
+        args[i]=search_alias(args[i],aliasStackTop);
     }
+
     args=wildcard(args);
 
     for(int i=0;i<NumBuiltin;i++){
@@ -284,9 +311,6 @@ void execute_command(char *args[],    /* 引数の配列 */
             isBuiltin=1;
             printf("builtin %s will execute\n",BuiltinCommand[i]);
             (*builtin_func[i])(args);
-            if(strcmp(args[0],histstr)==0){
-                pushHistory(args);
-            }
             return;
         }
     }
@@ -307,23 +331,20 @@ void execute_command(char *args[],    /* 引数の配列 */
                 /*built in (pipe用)*/
                 for(int i=0;i<NumBuiltin;i++){
                     if(strcmp(args[0],BuiltinCommand[i])==0){
-                        fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
+                        //fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
                         (*builtin_func[i])(args);
-                        if(strcmp(args[0],histstr)==0){
-                            pushHistory(args);
-                        }
                         exit(0);
                     }
                 }
                 /*ish_func*/
                 for(int i=0;i<NumExternalCommand;i++){
                     if(strcmp(args[0],ExternalCommand[i])==0){
-                        fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
+                        //fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
                         (*external_func[i])(args);
                         exit(0);
                     }
                 }
-                fprintf(stderr,"%s will execute\n",args[0]);
+                //fprintf(stderr,"%s will execute\n",args[0]);
                 execvp(args[0],args);
                 fprintf(stderr, "error :execve failed at main.c\n");
                 fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
@@ -445,14 +466,13 @@ char **wildcard(char *args[]){
     for(int i=0;i<argc;i++){
         if(strcmp(args[i],"*")==0){
             isWild=0;
-            char fileList[1024];
+            char fileList[256];
             fileList[0]='\0';
             get_cwd_files(fileList);
-            args[i]=fileList;
+            strcpy(args[i],fileList);
         }
         strcat(newcommand_buffer,args[i]);
         strcat(newcommand_buffer," ");
-
     }
     if(isWild){
         parse(newcommand_buffer,newargs);

@@ -6,7 +6,7 @@ typedef struct dir_stack{
 } linkedList;
 linkedList *dirStackTop;
 linkedList *histStackTop;
-
+linkedList *aliasStackTop;
 linkedList *pushNode(char *name,linkedList *stackTop);
 linkedList *popNode(char *popedNodeName,linkedList *stackTop);
 void print_list(linkedList *node);

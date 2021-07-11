@@ -11,6 +11,7 @@
 //global varibles
 char default_prompt[];
 char *prompt_str;
+char alias_tmp[256];
 //ish functions
 
 
@@ -22,6 +23,9 @@ void popd(char *args[]);
 void history(char *args[]);
 void pushHistory(char *args[]);
 void prompt(char *args[]);
+void alias(char *args[]);
+void unalias(char *args[]);
+char *search_alias(char *alias,linkedList *node);
 
 
 
