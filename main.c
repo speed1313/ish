@@ -12,27 +12,28 @@ char *BuiltinCommand[]={
     "pushd",
     "dirs",
     "popd",
-    "history",
     "prompt",
     "alias",
     "unalias"
 };
 char *ExternalCommand[]={
-
+    "history",
+    "echo",
+    "wc"
 };
 void (*builtin_func[]) (char *args[]) = {
     &ish_cd,
     &pushd,
     &dirs,
     &popd,
-    &history,
     &prompt,
     &alias,
     &unalias,
 };
 void (*external_func[]) (char *args[]) = {
-
-
+    &history,
+    &echo,
+    &wc
 
 
 };
@@ -298,13 +299,14 @@ void execute_command(char *args[],    /* 引数の配列 */
     }
 
     args=wildcard(args);
-
-    for(int i=0;i<NumBuiltin;i++){
-        if(strcmp(args[0],BuiltinCommand[i])==0){
-            isBuiltin=1;
-            printf("builtin %s will execute\n",BuiltinCommand[i]);
-            (*builtin_func[i])(args);
-            return;
+    if(command_status==0){
+        for(int i=0;i<NumBuiltin;i++){
+            if(strcmp(args[0],BuiltinCommand[i])==0){
+                isBuiltin=1;
+                printf("builtin %s will execute\n",BuiltinCommand[i]);
+                (*builtin_func[i])(args);
+                return;
+            }
         }
     }
     if(isBuiltin==0){
@@ -316,56 +318,73 @@ void execute_command(char *args[],    /* 引数の配列 */
         *  ・第１引数には実行されるプログラムを示す文字列が格納されている
         *  ・引数の配列はヌルポインタで終了している
         */
-        switch(pid){
-            case -1:
-                fprintf(stderr,"error :fork failed at main.c\n");
-                break;
-            case 0://child
-                /*built in (pipe用)*/
-                for(int i=0;i<NumBuiltin;i++){
-                    if(strcmp(args[0],BuiltinCommand[i])==0){
-                        //fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
-                        (*builtin_func[i])(args);
-                        exit(0);
+        if(pid==-1){
+            fprintf(stderr,"error :fork failed at main.c\n");
+        }else if(pid==0){//child
+            FILE *fd1;
+            FILE *fd2;
+            /*built in (pipe用)*/
+            for(int i=0;args[i]!=NULL;i++){
+                if(strcmp(args[i],"<")==0){
+                    if(args[i+1]!=NULL && !(fd1=open(args[i+1],O_RDONLY))){
+                        perror("fopen");
+                        exit(1);
+                    }
+                    printf("stdin redirect\n");
+                    args[i]=NULL;
+                    i++;
+                    dup2(fd1,0);
+                    close(fd1);
+                }
+                if(strcmp(args[i],">")==0){
+                    if(args[i+1]!=NULL && !(fd2=open(args[i+1],O_WRONLY))){
+                        perror("fopen");
+                        exit(1);
+                    }
+                    printf("stdout redirect\n");
+                    dup2(fd2,1);
+                    args[i]=NULL;
+                    close(fd2);
+                    i++;
+                }
+            }
+            for(int i=0;i<NumBuiltin;i++){
+                if(strcmp(args[0],BuiltinCommand[i])==0){
+                    //fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
+                    (*builtin_func[i])(args);
+                    exit(0);
+                }
+            }
+            /*ish_func*/
+            for(int i=0;i<NumExternalCommand;i++){
+                if(strcmp(args[0],ExternalCommand[i])==0){
+                    //fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
+                    (*external_func[i])(args);
+                    exit(0);
+                }
+            }
+            //fprintf(stderr,"%s will execute\n",args[0]);
+            execvp(args[0],args);
+            fprintf(stderr, "error :execve failed at main.c\n");
+            fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
+            exit(1);
+        }else{//parent
+            //printf("command_status=%d\n",command_status);
+            if(command_status==0){//foreground
+                for(;;){
+                    if((waitpid(pid,&status,WUNTRACED))==-1){
+                        fprintf(stderr,"error :waitpid failed at main.c\n");
+                        break;
+                    }
+                    if(WIFEXITED(status)||WIFSIGNALED(status)){
+                        break;
                     }
                 }
-                /*ish_func*/
-                for(int i=0;i<NumExternalCommand;i++){
-                    if(strcmp(args[0],ExternalCommand[i])==0){
-                        //fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
-                        (*external_func[i])(args);
-                        exit(0);
-                    }
-                }
-                //fprintf(stderr,"%s will execute\n",args[0]);
-                execvp(args[0],args);
-                fprintf(stderr, "error :execve failed at main.c\n");
-                fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
-                exit(1);
-            default://parent
-                //printf("command_status=%d\n",command_status);
-                if(command_status==0){//foreground
-                    for(;;){
-                        if((waitpid(pid,&status,WUNTRACED))==-1){
-                            fprintf(stderr,"error :waitpid failed at main.c\n");
-                            break;
-                        }
-                        if(WIFEXITED(status)||WIFSIGNALED(status)){
-                            break;
-                        }
-                    }
-                    if(strcmp(args[0],histstr)==0){
-                        pushHistory(args);
-                    }
-
-                    return;
-                }else{//background
-                    fprintf(stderr,"background\n");
-                    if(strcmp(args[0],histstr)==0){
-                        pushHistory(args);
-                    }
-                    return;
-                }
+                return;
+            }else{//background
+                fprintf(stderr,"background\n");
+                return;
+            }
         }
     }
 

@@ -7,7 +7,8 @@
 #include "stack.h"
 #include <ctype.h>
 #include <dirent.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 //global varibles
 char default_prompt[];
 char *prompt_str;
@@ -26,6 +27,8 @@ void prompt(char *args[]);
 void alias(char *args[]);
 void unalias(char *args[]);
 char *search_alias(char *alias,linkedList *node);
+void echo(char **argv);
+void wc(char *args[]);
 
 
 
