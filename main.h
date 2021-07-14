@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdbool.h>
 //global varibles
 char default_prompt[];
 char *prompt_str;

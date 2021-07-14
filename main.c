@@ -5,8 +5,6 @@
 char precommand[]="!!";
 char default_prompt[]="Command : ";
 char *prompt_str;
-
-
 char *BuiltinCommand[]={
     "cd",
     "pushd",
@@ -34,8 +32,6 @@ void (*external_func[]) (char *args[]) = {
     &history,
     &echo,
     &wc
-
-
 };
 /*
  *  ローカルプロトタイプ宣言
@@ -46,19 +42,9 @@ void str_replace(char *buf,char *str1,char *str2);
 void complemental_replace(char *buf,linkedList *ptr);
 void get_cwd_files(char *buf);
 char **wildcard(char *argv[]);
-/*----------------------------------------------------------------------------
- *
- *  関数名   : main
- *
- *  作業内容 : シェルのプロンプトを実現する
- *
- *  引数     :
- *
- *  返り値   :
- *
- *  注意     :
- *
- *--------------------------------------------------------------------------*/
+void redirect(char *args[],int pipenum,int savefd[2]);
+void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand);
+void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCommand);
 
 int main(int argc, char *argv[])
 {
@@ -79,12 +65,12 @@ int main(int argc, char *argv[])
             getcwd(CurrentPath, pathlen);
             fprintf(stdout,"%s %s\n",prompt_str,command_buffer);
             if(command_buffer==NULL) {
-                printf("\n");
+                fprintf(stderr,"\n");
                 continue;
             }
             command_status = parse(command_buffer, args);
             if(command_status == 2) {
-                printf("done.\n");
+                fprintf(stderr,"done.\n");
                 clear_list(histStackTop);
                 clear_list(dirStackTop);
                 exit(EXIT_SUCCESS);
@@ -92,30 +78,23 @@ int main(int argc, char *argv[])
                 continue;
             }
             execute_command(args, command_status);
-
         }
         return 0;
     }
-
-    /*
-     *  無限にループする
-     */
-
-
     for(;;) {
         // プロンプトを表示
         char CurrentPath[512];
         CurrentPath[0]='\0';
         int pathlen=0;
         getcwd(CurrentPath, pathlen);
-        printf("%s",prompt_str);
+        fprintf(stderr,"%s",prompt_str);
         /*
          *  標準入力から１行を command_buffer へ読み込む
          *  入力が何もなければ改行を出力してプロンプト表示へ戻る
          */
 
         if(fgets(command_buffer, BUFLEN, stdin) == NULL) {
-            printf("\n");
+            fprintf(stderr,"\n");
             continue;
         }
         /*
@@ -129,7 +108,7 @@ int main(int argc, char *argv[])
          *  引数が何もなければプロンプト表示へ戻る
          */
         if(command_status == 2) {
-            printf("done.\n");
+            fprintf(stderr,"done.\n");
             clear_list(histStackTop);
             clear_list(dirStackTop);
             exit(EXIT_SUCCESS);
@@ -139,27 +118,20 @@ int main(int argc, char *argv[])
         //コマンドを実行する
         execute_command(args, command_status);
     }
-
     return 0;
 }
 
 /*----------------------------------------------------------------------------
- *
  *  関数名   : parse
- *
  *  作業内容 : バッファ内のコマンドと引数を解析する
- *
  *  引数     :
- *
  *  返り値   : コマンドの状態を表す :
  *                0 : フォアグラウンドで実行
  *                1 : バックグラウンドで実行
  *                2 : シェルの終了
  *                3 : 何もしない
- *
  *  注意     : 引数が cat a.txtの時, まずargs[0]に"cat a.txt"の先頭アドレスが格納されるが,
  *            その後cat'\0'a.txt'\0'となるためargs[0]には"cat"のみ抽出される
- *
  *--------------------------------------------------------------------------*/
 
 int parse(char buffer[],        /* バッファ */
@@ -210,22 +182,18 @@ int parse(char buffer[],        /* バッファ */
         if(*buffer == '\0') {
             break;
         }
-
         /*
          *  空白部分は読み飛ばされたはず
          *  buffer は現在は arg_index + 1 個めの引数の先頭を指している
          *
          *  引数の先頭へのポインタを引数へのポインタ配列に格納する
          */
-
         args[arg_index] = buffer;
         ++arg_index;
-
         /*
          *  引数部分を読み飛ばす
          *  （ヌル文字でも空白類でもない場合に読み進める）
          */
-
         while((*buffer != '\0') && (*buffer != ' ') && (*buffer != '\t')) {
             ++buffer;
         }
@@ -245,17 +213,12 @@ int parse(char buffer[],        /* バッファ */
         --arg_index;
         args[arg_index] = '\0';
         status = 1;
-
     } else {
-
         status = 0;
-
     }
-
     /*
      *  引数が何もなかった場合
      */
-
     if(arg_index == 0) {
         status = 3;
     }
@@ -264,7 +227,6 @@ int parse(char buffer[],        /* バッファ */
      */
     return status;
 }
-
 /*----------------------------------------------------------------------------
  *
  *  関数名   : execute_command
@@ -274,19 +236,15 @@ int parse(char buffer[],        /* バッファ */
  *             実行している子プロセスの終了を待つ
  *             バックグラウンドならば子プロセスの終了を待たずに
  *             main 関数に返る（プロンプト表示に戻る）
- *
  *  引数     :
- *
  *  返り値   :
- *
  *  注意     :
- *
  *--------------------------------------------------------------------------*/
 
 void execute_command(char *args[],    /* 引数の配列 */
                      int command_status)     /* コマンドの状態 */
 {
-    int pid;      /* プロセスＩＤ */
+    int pid=0;      /* プロセスＩＤ */
     int status=0;   /* 子プロセスの終了ステータス */
     int NumBuiltin=sizeof(BuiltinCommand)/sizeof(char *);
     int NumExternalCommand=sizeof(ExternalCommand)/sizeof(char *);
@@ -297,104 +255,32 @@ void execute_command(char *args[],    /* 引数の配列 */
         strcpy(alias_tmp,args[i]);
         args[i]=search_alias(args[i],aliasStackTop);
     }
-
     args=wildcard(args);
+    int argc=0;
+    for(int i=0;args[i]!=NULL;i++){
+        argc++;
+    }
+    int inputfd,outputfd;
     if(command_status==0){
-        for(int i=0;i<NumBuiltin;i++){
-            if(strcmp(args[0],BuiltinCommand[i])==0){
-                isBuiltin=1;
-                printf("builtin %s will execute\n",BuiltinCommand[i]);
-                (*builtin_func[i])(args);
-                return;
-            }
-        }
-    }
-    if(isBuiltin==0){
+        ish_pipe(args,argc-1,NumBuiltin,NumExternalCommand);
+        return;
+    }else{/*background*/
         pid=fork();
-        /*
-        *  子プロセスの場合には引数として与えられたものを実行する
-        *
-        *  引数の配列は以下を仮定している
-        *  ・第１引数には実行されるプログラムを示す文字列が格納されている
-        *  ・引数の配列はヌルポインタで終了している
-        */
         if(pid==-1){
-            fprintf(stderr,"error :fork failed at main.c\n");
-        }else if(pid==0){//child
-            FILE *fd1;
-            FILE *fd2;
-            /*built in (pipe用)*/
-            for(int i=0;args[i]!=NULL;i++){
-                if(strcmp(args[i],"<")==0){
-                    if(args[i+1]!=NULL && !(fd1=open(args[i+1],O_RDONLY))){
-                        perror("fopen");
-                        exit(1);
-                    }
-                    printf("stdin redirect\n");
-                    args[i]=NULL;
-                    i++;
-                    dup2(fd1,0);
-                    close(fd1);
-                }
-                if(strcmp(args[i],">")==0){
-                    if(args[i+1]!=NULL && !(fd2=open(args[i+1],O_WRONLY))){
-                        perror("fopen");
-                        exit(1);
-                    }
-                    printf("stdout redirect\n");
-                    dup2(fd2,1);
-                    args[i]=NULL;
-                    close(fd2);
-                    i++;
-                }
-            }
-            for(int i=0;i<NumBuiltin;i++){
-                if(strcmp(args[0],BuiltinCommand[i])==0){
-                    //fprintf(stderr,"builtin %s will execute\n",BuiltinCommand[i]);
-                    (*builtin_func[i])(args);
-                    exit(0);
-                }
-            }
-            /*ish_func*/
-            for(int i=0;i<NumExternalCommand;i++){
-                if(strcmp(args[0],ExternalCommand[i])==0){
-                    //fprintf(stderr,"external %s will execute\n",ExternalCommand[i]);
-                    (*external_func[i])(args);
-                    exit(0);
-                }
-            }
-            //fprintf(stderr,"%s will execute\n",args[0]);
-            execvp(args[0],args);
-            fprintf(stderr, "error :execve failed at main.c\n");
-            fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
+            perror("fork");
             exit(1);
+        }else if(pid==0){//child
+            ish_pipe(args,argc-1,NumBuiltin,NumExternalCommand);
+            exit(0);
         }else{//parent
-            //printf("command_status=%d\n",command_status);
-            if(command_status==0){//foreground
-                for(;;){
-                    if((waitpid(pid,&status,WUNTRACED))==-1){
-                        fprintf(stderr,"error :waitpid failed at main.c\n");
-                        break;
-                    }
-                    if(WIFEXITED(status)||WIFSIGNALED(status)){
-                        break;
-                    }
-                }
-                return;
-            }else{//background
-                fprintf(stderr,"background\n");
-                return;
-            }
+            return;
         }
     }
-
-
     return;
 }
 
-
-//general functions
-void str_replace(char *buf,char *str1,char *str2){
+/*--------original functions----------*/
+void str_replace(char *buf,char *str1,char *str2){//replace str1 to str2 in a string
   char tmp[1024];
   char *p;
   while ((p = strstr(buf, str1)) != NULL) {
@@ -406,8 +292,7 @@ void str_replace(char *buf,char *str1,char *str2){
   }
 }
 
-
-void complemental_replace(char *buf,linkedList *ptr){
+void complemental_replace(char *buf,linkedList *ptr){// change "*" to all cwd files
   char tmp[1024];
   char *p;
   char *p2;
@@ -493,5 +378,205 @@ char **wildcard(char *args[]){
         return args;
     }
 }
+void redirect(char *args[],int pipenum,int savefd[2]){
+    int fd1,fd2;
+    for(int i=0;args[i]!=NULL;i++){
+        if(strcmp(args[i],"<")==0){
+            if(args[i+1]!=NULL){
+                if(!(fd1=open(args[i+1],O_RDONLY))){
+                    perror("open");
+                    exit(1);
+                }
+                args[i]=NULL;
+                if(pipenum==0||pipenum==1){
+                    savefd[0]=dup(0);
+                }
+                dup2(fd1,0);
+                if(close(fd1)==-1){
+                    perror("close");
+                    exit(1);
+                }
+                i++;
+            }else{
+                fprintf(stderr,"redirect error\n");
+            }
+        }
+        if(strcmp(args[i],">")==0){
+            if(args[i+1]!=NULL){
+                if(!(fd2=open(args[i+1],O_WRONLY|O_CREAT|O_TRUNC, 0666))){
+                    perror("fopen");
+                    exit(1);
+                }
+                args[i]=NULL;
+                fprintf(stderr,"pipenum=%d\n",pipenum);
+                if(pipenum==0||pipenum==1){
+                    savefd[1]=dup(1);
+                }
+                dup2(fd2,1);
+                if(close(fd2)==-1){
+                    perror("close");
+                    exit(1);
+                }
+                i++;
+            }else{
+                fprintf(stderr,"redirect usage: command </> filename");
 
+            }
+        }
+    }
+    return;
+}
+
+void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCommand){
+    int pipefd[2] = {0};
+    int status=0;
+    int pipenum=0;
+    int saveinputfd;
+    for(int i=commandPosition;i>=0;i--){
+        if(strcmp(args[i],"|")==0){
+            pipenum++;
+            args[i]=NULL;
+            pipe(pipefd);
+            int pid = fork();
+            if(pid==-1){//fork error
+                perror("fork");
+                exit(1);
+            }else if(pid == 0) {//child
+                if(close(pipefd[0])==-1){
+                    perror("close");
+                    exit(1);
+                }
+                dup2(pipefd[1], 1);
+                if(close(pipefd[1])==-1){
+                    perror("close");
+                    exit(1);
+                }
+                ish_pipe(args,i-1,NumBuiltin,NumExternalCommand);
+                exit(1);
+            }else {//parent
+            //出力パイプを閉じる, stdinをパイプの出力先にする.
+            // "|"の右側のコマンドを実行
+                if(args[i+1]==NULL){
+                    fprintf(stderr,"usage: command | command\n");
+                    if(pipenum==1){
+                        return;
+                    }else{
+                        exit(1);
+                    }
+                }
+                if(close(pipefd[1])==-1){
+                    perror("close");
+                    exit(1);
+                }
+                //一番最初の親プロセス(一番右のコマンド)はstdinを退避
+                if(pipenum==1){
+                    saveinputfd=dup(0);
+                }
+                dup2(pipefd[0], 0);
+                if(close(pipefd[0])==-1){
+                    perror("close");
+                    exit(1);
+                }
+                for(;;){
+                    if((waitpid(pid,&status,WUNTRACED))==-1){
+                        perror("waitpid");
+                        break;
+                    }
+                    if(WIFEXITED(status)||WIFSIGNALED(status)){
+                        break;
+                    }
+                }//パイプから子プロセスの標準出力が入ってくる
+                int savefd[2]={0,1};
+                redirect(&(args[i+1]),pipenum,savefd);
+                child_exec_command(&args[i+1],NumBuiltin,NumExternalCommand);
+                if(pipenum==1){//一番右のコマンドの時
+                    if(savefd[0]!=0){//stdinがリダイレクトされていれば戻す
+                        dup2(savefd[0],0);
+                        if(close(savefd[0])==-1){
+                            perror("close savdfd[0] error ");
+                            exit(1);
+                        }
+                    }
+                    if(savefd[1]!=1){//stdoutがリダイレクトされていれば戻す
+                        dup2(savefd[1],1);
+                        if(close(savefd[1])==-1){
+                            perror("close savdfd[1] error ");
+                            exit(1);
+                        }
+                    }
+
+                //一番右のコマンドなら保存したstdinファイルをstdinに割り当てる
+                    dup2(saveinputfd,0);
+                    if(close(saveinputfd)==-1){
+                        perror("close saveinputfd error ");
+                        exit(1);
+                    }
+                    return;//一番右コマンドならreturnで抜ける
+                }
+                exit(1);//子プロセスならプロセスを終える
+            }
+        }
+    }
+    //一番左のコマンドを実行
+    int savefd[2]={0,1};//stdin, stdoutの退避場所
+    redirect(args,pipenum,savefd);//リダイレクトがあればリダイレクト(savefdにstdin, stdoutはセーブされる)
+    child_exec_command(args,NumBuiltin,NumExternalCommand);
+    if(pipenum==0){
+        if(savefd[0]!=0){
+            dup2(savefd[0],0);
+            if(close(savefd[0])==-1){
+                perror("close savefd[0] error ");
+                exit(1);
+            }
+        }
+        if(savefd[1]!=1){
+            dup2(savefd[1],1);
+            if(close(savefd[1])==-1){
+                perror("close savefd[1] error ");
+                exit(1);
+            }
+        }
+    }
+    return;
+}
+
+void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand){
+    for(int i=0;i<NumBuiltin;i++){
+        if(strcmp(args[0],BuiltinCommand[i])==0){
+            (*builtin_func[i])(args);
+            return;
+        }
+    }
+    int pid=fork();
+    if(pid==-1){
+        perror("fork");
+        exit(1);
+    }else if(pid==0){//child
+        /*ish_func*/
+        for(int i=0;i<NumExternalCommand;i++){
+            if(strcmp(args[0],ExternalCommand[i])==0){
+                fprintf(stderr,"external\n");
+                (*external_func[i])(args);
+                exit(0);
+            }
+        }
+        execvp(args[0],args);
+        fprintf(stderr, "error :execve failed at main.c\n");
+        fprintf(stderr,"ish : perhaps command not found : %s\n",args[0]);
+        exit(1);
+    }else{//parent
+        int status;
+        for(;;){
+            if((waitpid(pid,&status,WUNTRACED))==-1){
+                perror("waitpid");
+                break;
+            }
+            if(WIFEXITED(status)||WIFSIGNALED(status)){
+                break;
+            }
+        }
+        return;
+    }
+    return;
+}
 /*-- END OF FILE -----------------------------------------------------------*/

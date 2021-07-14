@@ -1,5 +1,4 @@
 #include "main.h"
-#include <stdbool.h>
 void wc(char *args[]);
 
 void wc(char *args[]){
@@ -35,5 +34,5 @@ void wc(char *args[]){
         }
     }
     printf("% 8d % 8d % 8d \n",nlines,nwords,nbytes);
-    return ;
+    exit(0);
 }
