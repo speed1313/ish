@@ -12,7 +12,7 @@
 #include <stdbool.h>
 //global varibles
 char default_prompt[];
-char *prompt_str;
+char prompt_str[512];
 char alias_tmp[256];
 //ish functions
 

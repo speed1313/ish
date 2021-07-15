@@ -23,8 +23,9 @@ void pushHistory(char *args[]){
     return;
 }
 void hist_list_print(linkedList *node,int i){
-  if(node==NULL)
+  if(node==NULL){
     return;
+  }
   int j=i;
   i--;
   hist_list_print(node->next,i);

@@ -5,7 +5,6 @@ void alias(char *args[]);
 void unalias(char *args[]);
 linkedList *delete_alias(char *alias,linkedList *parent);
 void pushalias(char *args[]);
-void alias_list_print(linkedList *node);
 char *search_alias(char *arg,linkedList *node);
 
 void alias(char *args[]){
@@ -62,10 +61,6 @@ void pushalias(char *args[]){
     sprintf(Alias,"%s %s",args[1],args[2]);
     aliasStackTop=pushNode(Alias,aliasStackTop);
     return;
-}
-void alias_list_print(linkedList *node){
-  print_list(alias_list_print);
-  return;
 }
 char *search_alias(char *arg,linkedList *node){
     if(node==NULL){

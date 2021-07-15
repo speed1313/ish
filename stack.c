@@ -27,7 +27,7 @@ linkedList *popNode(char *popedNodeName,linkedList *stackTop){
     }
     popedNodeName=strdup(stackTop->name);
     if (!popedNodeName) {
-        perror("popNode error");
+        perror("popNode");
         exit(1);
     }
     stackTop=stackTop->next;

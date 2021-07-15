@@ -2,9 +2,9 @@
 #include "stack.h"
 linkedList *dirStackTop=NULL;
 void pushd(char *args[]){
-    char cwd[256];
+    char cwd[512];
      if (getcwd(cwd, sizeof(cwd)) == NULL){
-        perror("getcwd() error");
+        perror("getcwd()");
      }else{
          dirStackTop=pushNode(cwd,dirStackTop);
      }

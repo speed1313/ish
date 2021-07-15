@@ -28,11 +28,11 @@ void wc(char *args[]){
             nlines++;
         if(wordflag && isspace(c)){
             wordflag=false;
-        }else if(!wordflag　&& !isspace(c)){
+        }else if(!wordflag && !isspace(c)){
             wordflag=true;
             nwords++;
         }
     }
     printf("% 8d % 8d % 8d \n",nlines,nwords,nbytes);
-    exit(0);
+    return;
 }
