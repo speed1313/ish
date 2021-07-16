@@ -1,0 +1,31 @@
+pushd
+dirs
+wc < main.c
+wc < main.c > a.txt
+cat a.txt
+cd
+pushd
+popd
+dirs
+!!
+!p
+!pu
+prompt ish:
+prompt
+ls
+cd
+wc < a.txt
+cat > a.txt
+history
+ls | cat
+alias sl ls
+sl
+echo *
+prompt [\w]$
+cat a.txt
+alias
+unalias sl
+alias
+ls
+ls > a.txt | cat
+ps

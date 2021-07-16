@@ -45,6 +45,7 @@ char **wildcard(char *argv[]);
 void redirect(char *args[],int pipenum,int savefd[2]);
 void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int saveinputfd,int savefd[2]);
 void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCommand);
+void ish_close(int fd);
 
 int main(int argc, char *argv[])
 {
@@ -56,7 +57,11 @@ int main(int argc, char *argv[])
                                     command_status = 2 : シェルの終了
                                     command_status = 3 : 何もしない */
     strcpy(prompt_str,default_prompt);
-    //script機能
+    /*script機能
+    *  scriptの最後は改行しておくこと
+    *
+    */
+
     if(!isatty(0)){
         fprintf(stderr,"script\n");
         int nlines=0;
@@ -65,11 +70,14 @@ int main(int argc, char *argv[])
         }
         rewind(stdin);
         int i=0;
-        while ((i<=nlines) && (fgets(command_buffer,BUFLEN,stdin)!=NULL)){
+        while ((i<nlines) && (fgets(command_buffer,BUFLEN,stdin)!=NULL)){
             i++;
             char CurrentPath[512];
             CurrentPath[0]='\0';
-            getcwd(CurrentPath,sizeof(CurrentPath));
+            if(getcwd(CurrentPath,sizeof(CurrentPath))==NULL){
+                perror("getcwd");
+                exit(1);
+            }
             char p[512];
             p[0]='\0';
             strcpy(p,prompt_str);
@@ -103,7 +111,10 @@ int main(int argc, char *argv[])
         // プロンプトを表示
         char CurrentPath[512];
         CurrentPath[0]='\0';
-        getcwd(CurrentPath,sizeof(CurrentPath));
+        if(getcwd(CurrentPath,sizeof(CurrentPath))==NULL){
+            perror("getcwd");
+            exit(1);
+        }
         char p[512];
         p[0]='\0';
         strcpy(p,prompt_str);
@@ -113,7 +124,6 @@ int main(int argc, char *argv[])
          *  標準入力から１行を command_buffer へ読み込む
          *  入力が何もなければ改行を出力してプロンプト表示へ戻る
          */
-
         if(fgets(command_buffer, BUFLEN, stdin) == NULL) {
             fprintf(stderr,"\n");
             continue;
@@ -406,19 +416,19 @@ void redirect(char *args[],int pipenum,int savefd[2]){
     for(int i=0;args[i]!=NULL;i++){
         if(strcmp(args[i],"<")==0){
             if(args[i+1]!=NULL){
-                if(!(fd1=open(args[i+1],O_RDONLY))){
+                if((fd1=open(args[i+1],O_RDONLY))==-1){
                     perror("open");
                     exit(1);
                 }
                 args[i]=NULL;
                 if(pipenum==0||pipenum==1){
-                    savefd[0]=dup(0);
+                    if((savefd[0]=fcntl(0,F_DUPFD,10))==-1){
+                        perror("fcntl");
+                        exit(1);
+                    }
                 }
                 dup2(fd1,0);
-                if(close(fd1)==-1){
-                    perror("close fd1");
-                    exit(1);
-                }
+                ish_close(fd1);
                 i++;
             }else{
                 fprintf(stderr,"redirect error\n");
@@ -426,20 +436,19 @@ void redirect(char *args[],int pipenum,int savefd[2]){
         }
         if(strcmp(args[i],">")==0){
             if(args[i+1]!=NULL){
-                if(!(fd2=open(args[i+1],O_WRONLY|O_CREAT|O_TRUNC, 0666))){
-                    perror("fopen");
+                if((fd2=open(args[i+1],O_WRONLY|O_CREAT|O_TRUNC, 0666))==-1){
+                    perror("open");
                     exit(1);
                 }
                 args[i]=NULL;
-                fprintf(stderr,"pipenum=%d\n",pipenum);
                 if(pipenum==0||pipenum==1){
-                    savefd[1]=fcntl(1,F_DUPFD,10);
+                    if((savefd[1]=fcntl(1,F_DUPFD,10))==-1){
+                        perror("fcntl");
+                        exit(1);
+                    }
                 }
                 dup2(fd2,1);
-                if(close(fd2)==-1){
-                    perror("close fd2");
-                    exit(1);
-                }
+                ish_close(fd2);
                 i++;
             }else{
                 fprintf(stderr,"redirect usage: command </> filename");
@@ -468,24 +477,15 @@ void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCom
                 perror("fork");
                 exit(1);
             }else if(pid == 0) {//child
-                if(close(pipefd[0])==-1){
-                    perror("close pipefd[0]");
-                    exit(1);
-                }
+                ish_close(pipefd[0]);
                 dup2(pipefd[1], 1);
-                if(close(pipefd[1])==-1){
-                    perror("close pipefd[1]");
-                    exit(1);
-                }
+                ish_close(pipefd[1]);
                 ish_pipe(args,i-1,NumBuiltin,NumExternalCommand);
                 exit(0);
             }else {//parent
             //出力パイプを閉じる, stdinをパイプの出力先にする.
             // "|"の右側のコマンドを実行
-                if(close(pipefd[1])==-1){
-                    perror("close pipefd[1]");
-                    exit(1);
-                }
+                ish_close(pipefd[1]);
                 if(args[i+1]==NULL){
                     fprintf(stderr,"usage: command | command\n");
                     if(pipenum==1){//./ishをexitしないようにreturn
@@ -496,13 +496,13 @@ void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCom
                 }
                 //ishと同じプロセス(一番右のコマンド)はstdinを退避
                 if(pipenum==1){
-                    saveinputfd=fcntl(0,F_DUPFD,10);
+                    if((saveinputfd=fcntl(0,F_DUPFD,10))==-1){
+                        perror("fcntl");
+                        exit(1);
+                    }
                 }
                 dup2(pipefd[0], 0);//0をパイプにむける
-                if(close(pipefd[0])==-1){
-                    perror("close pipefd[0]");
-                    exit(1);
-                }
+                ish_close(pipefd[0]);
                 for(;;){
                     if((waitpid(pid,&status,WUNTRACED))==-1){
                         perror("waitpid");
@@ -517,34 +517,19 @@ void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCom
                 child_exec_command(&args[i+1],NumBuiltin,NumExternalCommand,saveinputfd,savefd);
                 if(pipenum==1){//一番右のコマンドの時
                     if(savefd[0]!=0){//stdinがリダイレクトされていれば戻す
-                        if(close(savefd[0])==-1){
-                            perror("close savdfd[0] error ");
-                            exit(1);
-                        }
+                        ish_close(savefd[0]);
                     }
                     if(savefd[1]!=1){//stdoutがリダイレクトされていれば戻す
                         dup2(savefd[1],1);
-                        if(close(savefd[1])==-1){
-                            perror("close savdfd[1] error ");
-                            exit(1);
-                        }
+                        ish_close(savefd[1]);
                     }
                 //一番右のコマンドなら保存したstdinファイルをstdinに割り当てる
                     dup2(saveinputfd,0);
-                    if(close(saveinputfd)==-1){
-                        perror("close saveinputfd error ");
-                        exit(1);
-                    }
+                    ish_close(saveinputfd);
                     return;//一番右コマンドならreturnで抜ける
                 }
-                if(close(savefd[0])==-1){
-                    perror("close savdfd[0] error ");
-                    exit(1);
-                }
-                if(close(savefd[1])==-1){
-                    exit(1);
-                    perror("close savdfd[1] error ");
-                }
+                ish_close(savefd[0]);
+                ish_close(savefd[1]);
                 exit(1);//子プロセスならプロセスを終える
             }
         }
@@ -556,29 +541,13 @@ void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCom
     if(pipenum==0){//単一コマンドの場合
         if(savefd[0]!=0){
             dup2(savefd[0],0);
-            if(close(savefd[0])==-1){
-                perror("close savefd[0]");
-                exit(1);
-            }
+            ish_close(savefd[0]);
         }
         if(savefd[1]!=1){
             dup2(savefd[1],1);
-            if(close(savefd[1])==-1){
-                perror("close savefd[1]");
-                exit(1);
-            }
+            ish_close(savefd[1]);
         }
         return;
-    }
-    else{//子プロセスならfdは不要
-        if(close(savefd[0])==-1){
-            perror("close savefd[0]");
-            exit(1);
-        }
-        if(close(savefd[1])==-1){
-            perror("close savefd[1]");
-            exit(1);
-        }
     }
     exit(0);
 }
@@ -598,22 +567,13 @@ void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int s
     }else if(pid==0){//child
         /*ish_func*/
         if(saveinputfd!=savefd[0] && saveinputfd!=0){
-            if(close(saveinputfd)==-1){
-            perror("close saveinputfd");
-            exit(1);
-            }
+            ish_close(saveinputfd);
         }
         if(savefd[0]!=0){
-            if(close(savefd[0])==-1){
-                perror("close");
-                exit(1);
-            }
+            ish_close(savefd[0]);
         }
         if(savefd[1]!=1){
-            if(close(savefd[1])==-1){
-                perror("close");
-                exit(1);
-            }
+            ish_close(savefd[1]);
         }
         for(int i=0;i<NumExternalCommand;i++){
             if(strcmp(args[0],ExternalCommand[i])==0){
@@ -639,5 +599,13 @@ void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int s
         return;
     }
     return;
+}
+
+void ish_close(int fd){
+    if(close(fd)==-1){
+        fprintf(stderr,"fd=%d\n",fd);
+        perror("close");
+        exit(1);
+    }
 }
 /*-- END OF FILE -----------------------------------------------------------*/
