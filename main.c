@@ -39,7 +39,7 @@ void (*external_func[]) (char *args[]) = {
 int parse(char [], char *[]);
 void execute_command(char *[], int);
 void str_replace(char *buf,char *str1,char *str2);
-void complemental_replace(char *buf,linkedList *ptr);
+void complemental_replace(char *buf,histlinkedList *ptr);
 void get_cwd_files(char *buf);
 char **wildcard(char *argv[]);
 void redirect(char *args[],int pipenum,int savefd[2]);
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
             command_status = parse(command_buffer, args);
             if(command_status == 2) {
                 fprintf(stderr,"done.\n");
-                clear_list(histStackTop);
+                hist_clear_list(histStackTop);
                 clear_list(dirStackTop);
                 clear_list(aliasStackTop);
                 exit(EXIT_SUCCESS);
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
             fprintf(stderr,"\n");
         }
         fprintf(stderr,"done.\n");
-        clear_list(histStackTop);
+        hist_clear_list(histStackTop);
         clear_list(dirStackTop);
         clear_list(aliasStackTop);
         exit(0);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
          */
         if(command_status == 2) {
             fprintf(stderr,"done.\n");
-            clear_list(histStackTop);
+            hist_clear_list(histStackTop);
             clear_list(dirStackTop);
             clear_list(aliasStackTop);
             exit(EXIT_SUCCESS);
@@ -178,7 +178,7 @@ int parse(char buffer[],        /* バッファ */
     if(*(buffer + (strlen(buffer) - 1))=='\n'){
         *(buffer + (strlen(buffer) - 1)) = '\0';
     }
-    /*"!!"機能*/
+    /* !!, !string機能*/
     if(histStackTop!=NULL){
         str_replace(buffer,precommand,histStackTop->name);
         complemental_replace(buffer,histStackTop);
@@ -304,46 +304,46 @@ void str_replace(char *buf,char *str1,char *str2){//replace str1 to str2 in buf 
     strcat(buf, tmp);
   }
 }
-
-void complemental_replace(char *buf,linkedList *ptr){// change "*" to all cwd files
+/*change ! or !string to past command*/
+void complemental_replace(char *buf,histlinkedList *ptr){
   char tmp[1024];
   char *p;
   char *p2;
   int  match=0;
-  while ((p = strstr(buf,"!")) != NULL) {
+  while ((p = strstr(buf,"!")) != NULL) {//bufの!を全て置換し終わるまでループ
     p2=p;
     int i=0;
     char strbuf[1024];
     char *str2;
-    p++;
-    while(isspace(*p)==0&&(p!=NULL)){
+    p++;//pは!strの"s"をさす
+    while(isspace(*p)==0&&(p!=NULL)){//空白を飛ばす
         strbuf[i++]=*p;
         p++;
     }
     strbuf[i]='\0';//strbufに!strのstrがはいる
     i=0;
-    *p2='\0';
+    *p2='\0';//必要なくなった"!"をnullにする.
     p2 += (strlen(strbuf)+1);//"!str” 分進める
     strcpy(tmp, p2);//tmpに!strの後ろ部分を格納
-    while(ptr!=NULL){
+    while(ptr!=NULL){//strbufがhiststackに含まれるかチェック
         int matchNum=0;
         for(int i=0;i<strlen(strbuf);i++){
             if(strbuf[i]==ptr->name[i]){
                 matchNum++;
             }
         }
-        if(matchNum==strlen(strbuf)){
+        if(matchNum==strlen(strbuf)){//マッチした文字数がstrbufと等しければそれに置換するフラグ
             match=1;
             break;
         }
         ptr=ptr->next;
     }
-    if(match==1){
+    if(match==1){//置換
         strcat(buf,ptr->name);
     }else{
-        strcat(buf," ");
+        strcat(buf," ");//マッチしなければ空白
     }
-    strcat(buf, tmp);
+    strcat(buf, tmp);//!strの後ろ部分を結合
   }
 }
 

@@ -42,16 +42,15 @@ void print_list(linkedList *node){
   printf("%s\n",node->name);
   print_list(node->next);
   return;
-
 }
+/*
 void r_print_list(linkedList *node){
   if(node==NULL)
     return;
   print_list(node->next);
   printf("%s\n",node->name);
   return;
-
-}
+}*/
 void clear_list(linkedList *node){
   if(node==NULL)
     return;
