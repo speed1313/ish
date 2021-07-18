@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
     for(;;) {
-        // プロンプトを表示
+        //プロンプトデザイン処理
         char CurrentPath[512];
         CurrentPath[0]='\0';
         if(getcwd(CurrentPath,sizeof(CurrentPath))==NULL){
@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
         p[0]='\0';
         strcpy(p,prompt_str);
         str_replace(p,"\\w",CurrentPath);
+        // プロンプトを表示
         fprintf(stderr,"%s",p);
         /*
          *  標準入力から１行を command_buffer へ読み込む
@@ -177,41 +178,20 @@ int parse(char buffer[],        /* バッファ */
     if(*(buffer + (strlen(buffer) - 1))=='\n'){
         *(buffer + (strlen(buffer) - 1)) = '\0';
     }
+    /*"!!"機能*/
     if(histStackTop!=NULL){
         str_replace(buffer,precommand,histStackTop->name);
         complemental_replace(buffer,histStackTop);
     }
-    /*
-     *  バッファが終了を表すコマンド（"exit"）ならば
-     *  コマンドの状態を表す返り値を 2 に設定してリターンする
-     */
-
     if(strcmp(buffer, "exit") == 0) {
-
         status = 2;
         return status;
     }
-
-    /*
-     *  バッファ内の文字がなくなるまで繰り返す
-     *  （ヌル文字が出てくるまで繰り返す）
-     */
-
+    /*文字列をparse*/
     while(*buffer != '\0') {
-
-        /*
-         *  空白類（空白とタブ）をヌル文字に置き換える
-         *  これによってバッファ内の各引数が分割される
-         */
-
         while(*buffer == ' ' || *buffer == '\t') {
             *(buffer++) = '\0';
         }
-
-        /*
-         * 空白の後が終端文字であればループを抜ける
-         */
-
         if(*buffer == '\0') {
             break;
         }
