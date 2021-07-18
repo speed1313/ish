@@ -28,7 +28,13 @@ void dirs(char *args[]){
 }
 void popd(char *args[]){
     char popdDirName[256];
-    cd()
+    if(dirStackTop==NULL){
+        fprintf(stderr,"popd: directory stack empty\n");
+    }else {
+         if(chdir(dirStackTop->name) != 0){
+            perror("popd");
+         }
+    }
     dirStackTop=popNode(popdDirName,dirStackTop);
 
     return;
