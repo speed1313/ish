@@ -39,9 +39,9 @@ void (*external_func[]) (char *args[]) = {
 int parse(char [], char *[]);
 void execute_command(char *[], int);
 void str_replace(char *buf,char *str1,char *str2);
-void complemental_replace(char *buf,histlinkedList *ptr);
+int complemental_replace(char *buf,histlinkedList *node);
 void get_cwd_files(char *buf);
-char **wildcard(char *argv[]);
+char **wildcard(char *argv[],char *newcommand_buffer);
 void redirect(char *args[],int pipenum,int savefd[2]);
 void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int saveinputfd,int savefd[2]);
 void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCommand);
@@ -97,7 +97,6 @@ int main(int argc, char *argv[])
             } else if(command_status == 3) {
                 continue;
             }
-
             execute_command(args, command_status);
             fprintf(stderr,"\n");
         }
@@ -178,10 +177,16 @@ int parse(char buffer[],        /* バッファ */
     if(*(buffer + (strlen(buffer) - 1))=='\n'){
         *(buffer + (strlen(buffer) - 1)) = '\0';
     }
-    /* !!, !string機能*/
-    if(histStackTop!=NULL){
+    /* !!*/
+    if(strstr(buffer,"!!")){
+        if(histStackTop==NULL){
+            fprintf(stderr,"ish: event not found: !!\n");
+            return 3;
+        }
         str_replace(buffer,precommand,histStackTop->name);
-        complemental_replace(buffer,histStackTop);
+    }
+    if(complemental_replace(buffer,histStackTop)==-1){/*!string機能*/
+            return 3;
     }
     if(strcmp(buffer, "exit") == 0) {
         status = 2;
@@ -268,12 +273,12 @@ void execute_command(char *args[],    /* 引数の配列 */
         strcpy(alias_tmp,args[i]);
         args[i]=search_alias(args[i],aliasStackTop);
     }
-    args=wildcard(args);
+    char newcommand_buffer[BUFLEN];
+    wildcard(args,newcommand_buffer);
     int argc=0;
     for(int i=0;args[i]!=NULL;i++){
         argc++;
     }
-
     if(command_status==0){
         ish_pipe(args,argc-1,NumBuiltin,NumExternalCommand);
         return;
@@ -294,9 +299,9 @@ void execute_command(char *args[],    /* 引数の配列 */
 
 /*--------original functions----------*/
 void str_replace(char *buf,char *str1,char *str2){//replace str1 to str2 in buf strings
-  char tmp[1024];
-  char *p;
-  while ((p = strstr(buf, str1)) != NULL) {
+    char tmp[1024];
+    char *p;
+    while ((p = strstr(buf, str1)) != NULL) {
     *p = '\0';
     p += strlen(str1);
     strcpy(tmp, p);
@@ -305,30 +310,32 @@ void str_replace(char *buf,char *str1,char *str2){//replace str1 to str2 in buf 
   }
 }
 /*change ! or !string to past command*/
-void complemental_replace(char *buf,histlinkedList *ptr){
+int complemental_replace(char *buf,histlinkedList *node){
   char tmp[1024];
   char *p;
-  char *p2;
   int  match=0;
   while ((p = strstr(buf,"!")) != NULL) {//bufの!を全て置換し終わるまでループ
-    p2=p;
+    match=0;
     int i=0;
     char strbuf[1024];
     char *str2;
+    *p='\0';
     p++;//pは!strの"s"をさす
-    while(isspace(*p)==0&&(p!=NULL)){//空白を飛ばす
+    while((isspace(*p)==0)&&((*p)!=NULL)){//空白になるまでstrbufにstringを格納
         strbuf[i++]=*p;
         p++;
     }
     strbuf[i]='\0';//strbufに!strのstrがはいる
     i=0;
-    *p2='\0';//必要なくなった"!"をnullにする.
-    p2 += (strlen(strbuf)+1);//"!str” 分進める
-    strcpy(tmp, p2);//tmpに!strの後ろ部分を格納
-    while(ptr!=NULL){//strbufがhiststackに含まれるかチェック
+    strcpy(tmp, p);//tmpに!strの後ろ部分を格納
+    if(node==NULL){
+        fprintf(stderr,"ish: event not found: %s\n",strbuf);
+        return -1;
+    }
+    while(node!=NULL){//strbufがhiststackに含まれるかチェック
         int matchNum=0;
         for(int i=0;i<strlen(strbuf);i++){
-            if(strbuf[i]==ptr->name[i]){
+            if(strbuf[i]==node->name[i]){
                 matchNum++;
             }
         }
@@ -336,15 +343,17 @@ void complemental_replace(char *buf,histlinkedList *ptr){
             match=1;
             break;
         }
-        ptr=ptr->next;
+        node=node->next;
     }
     if(match==1){//置換
-        strcat(buf,ptr->name);
+        strcat(buf,node->name);
     }else{
-        strcat(buf," ");//マッチしなければ空白
+        fprintf(stderr,"ish: event not found: %s\n",strbuf);
+        return -1;
     }
     strcat(buf, tmp);//!strの後ろ部分を結合
   }
+  return 0;
 }
 
 void  get_cwd_files(char *buf){
@@ -364,32 +373,28 @@ void  get_cwd_files(char *buf){
     closedir(dp);
     return;
 }
-char **wildcard(char *args[]){
-    char *newargs[MAXARGNUM];
-    char newcommand_buffer[BUFLEN];
+char **wildcard(char *args[],char *newcommand_buffer){
     newcommand_buffer[0]='\0';
     int argc=0;
     int isWild=0;
+    char fileList[256];
     for(int i=0;args[i]!=NULL;i++){
         argc++;
     }
     for(int i=0;i<argc;i++){
         if(strcmp(args[i],"*")==0){
-            isWild=0;
-            char fileList[256];
+            isWild=1;
             fileList[0]='\0';
             get_cwd_files(fileList);
-            strcpy(args[i],fileList);
+            args[i]=fileList;
         }
         strcat(newcommand_buffer,args[i]);
         strcat(newcommand_buffer," ");
     }
     if(isWild){
-        parse(newcommand_buffer,newargs);
-        return newargs;
-    }else{
-        return args;
+        parse(newcommand_buffer,args);
     }
+    return args;
 }
 void redirect(char *args[],int pipenum,int savefd[2]){
     int fd1,fd2;
@@ -533,7 +538,6 @@ void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCom
 }
 
 void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int saveinputfd,int savefd[2]){
-
     for(int i=0;i<NumBuiltin;i++){
         if(strcmp(args[0],BuiltinCommand[i])==0){
             (*builtin_func[i])(args);

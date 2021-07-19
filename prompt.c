@@ -11,5 +11,4 @@ void prompt(char *args[]){
         strcpy(prompt_str,args[1]);
     }
     return;
-
 }
