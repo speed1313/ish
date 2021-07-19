@@ -41,7 +41,7 @@ void execute_command(char *[], int);
 void str_replace(char *buf,char *str1,char *str2);
 int complemental_replace(char *buf,histlinkedList *node);
 void get_cwd_files(char *buf);
-char **wildcard(char *argv[],char *newcommand_buffer);
+void wildcard(char *argv[],char *newcommand_buffer);
 void redirect(char *args[],int pipenum,int savefd[2]);
 void child_exec_command(char *args[],int NumBuiltin,int NumExternalCommand,int saveinputfd,int savefd[2]);
 void ish_pipe(char *args[],int commandPosition,int NumBuiltin,int NumExternalCommand);
@@ -373,7 +373,7 @@ void  get_cwd_files(char *buf){
     closedir(dp);
     return;
 }
-char **wildcard(char *args[],char *newcommand_buffer){
+void wildcard(char *args[],char *newcommand_buffer){
     newcommand_buffer[0]='\0';
     int argc=0;
     int isWild=0;
@@ -394,7 +394,6 @@ char **wildcard(char *args[],char *newcommand_buffer){
     if(isWild){
         parse(newcommand_buffer,args);
     }
-    return args;
 }
 void redirect(char *args[],int pipenum,int savefd[2]){
     int fd1,fd2;
