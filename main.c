@@ -394,6 +394,7 @@ void wildcard(char *args[],char *newcommand_buffer){
     if(isWild){
         parse(newcommand_buffer,args);
     }
+    return;
 }
 void redirect(char *args[],int pipenum,int savefd[2]){
     int fd1,fd2;

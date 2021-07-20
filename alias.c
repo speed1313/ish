@@ -51,9 +51,11 @@ linkedList *delete_alias(char *alias,linkedList *node){
         node=node->next;
         free(tmp->name);
         free(tmp);
+
         return node;
     }else{
-        return node=delete_alias(alias,node->next);
+        node->next=delete_alias(alias,node->next);
+        return node;
     }
 }
 void pushalias(char *args[]){

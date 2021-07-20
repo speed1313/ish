@@ -20,6 +20,8 @@ void wc(char *args[]){
             perror("fopen");
             exit(0);
         }
+    }else{
+        fprintf(stderr,"usage: wc ([filename])\n");
     }
     char c;
     while((c=fgetc(fp))!=EOF){

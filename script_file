@@ -28,4 +28,5 @@ unalias sl
 alias
 ls
 ls > a.txt | cat
+
 ps
